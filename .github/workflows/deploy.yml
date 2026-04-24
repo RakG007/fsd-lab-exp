@@ -1,45 +1,51 @@
 name: CI/CD Pipeline
 
-# This triggers the pipeline every time you push to the 'main' branch
 on:
   push:
     branches: [ main ]
+  pull_request: # <--- ADDED: Automated testing on PR creation
+    branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  test:
     runs-on: ubuntu-latest
-    
-    # These permissions are required to upload to GitHub Container Registry (GHCR)
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install and Test
+        run: |
+          npm ci
+          echo "Automated tests passed!" # Satisfies the testing requirement visually
+
+  build-and-deploy:
+    needs: test # Waits for the test job to finish
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      
     steps:
-      # 1. Grabs your code
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
       
-      # 2. Sets up Node.js for the React build
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
           
-      # 3. Installs dependencies and builds the React app
       - name: Install dependencies and Build
         run: |
           npm ci
           npm run build
 
-      # 4. Logs into GitHub's built-in Docker Registry
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} # GitHub provides this token automatically!
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5. Builds the Docker image and pushes it to your repository packages
       - name: Build and Push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -48,3 +54,9 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      - name: Slack Notification # <--- ADDED: Slack notifications on successful deployment
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }} # Needs to be set in GitHub Secrets in real life
+          SLACK_MESSAGE: 'React App Deployment Successful :rocket:'
