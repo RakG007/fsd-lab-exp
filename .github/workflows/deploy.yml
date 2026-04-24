@@ -55,8 +55,9 @@ jobs:
             ghcr.io/rakg007/fsd-lab-exp:latest
             ghcr.io/rakg007/fsd-lab-exp:${{ github.sha }}
 
-      - name: Slack Notification # <--- ADDED: Slack notifications on successful deployment
+      - name: Slack Notification
         uses: rtCamp/action-slack-notify@v2
+        continue-on-error: true # <--- THIS IS THE MAGIC LINE
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }} # Needs to be set in GitHub Secrets in real life
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_MESSAGE: 'React App Deployment Successful :rocket:'
